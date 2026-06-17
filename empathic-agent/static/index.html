@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Louie — Empathic Agent</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2f3d;
+      --text: #e8eaed;
+      --muted: #9aa0a6;
+      --accent: #6c8cff;
+      --accent-dim: #4a5fa0;
+      --success: #34a853;
+      --danger: #ea4335;
+      --warning: #fbbc04;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 3rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    header h1 {
+      font-size: 1.75rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      color: var(--muted);
+      margin-top: 0.35rem;
+      font-size: 0.95rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    .card h2 {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 0.65rem 0.85rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 1rem;
+    }
+
+    input[type="text"]:focus {
+      outline: 2px solid var(--accent-dim);
+      border-color: var(--accent);
+    }
+
+    .controls {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 0.65rem 1.25rem;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    #startBtn {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    #startBtn:hover:not(:disabled) { background: var(--accent-dim); }
+
+    #startBtn.active {
+      background: var(--danger);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: var(--bg);
+      border: 1px solid var(--border);
+    }
+
+    .badge .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+
+    .badge.connecting .dot { background: var(--warning); animation: pulse 1s infinite; }
+    .badge.active .dot { background: var(--success); animation: pulse 1.2s infinite; }
+    .badge.closed .dot { background: var(--muted); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .waveform {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      height: 48px;
+      margin: 0.5rem 0;
+    }
+
+    .waveform span {
+      display: block;
+      width: 4px;
+      height: 8px;
+      background: var(--accent);
+      border-radius: 2px;
+      opacity: 0.25;
+      transition: height 0.08s, opacity 0.08s;
+    }
+
+    .waveform.recording span {
+      opacity: 0.9;
+      animation: wave 0.6s ease-in-out infinite alternate;
+    }
+
+    .waveform.recording span:nth-child(1) { animation-delay: 0s; }
+    .waveform.recording span:nth-child(2) { animation-delay: 0.08s; }
+    .waveform.recording span:nth-child(3) { animation-delay: 0.16s; }
+    .waveform.recording span:nth-child(4) { animation-delay: 0.24s; }
+    .waveform.recording span:nth-child(5) { animation-delay: 0.32s; }
+    .waveform.recording span:nth-child(6) { animation-delay: 0.24s; }
+    .waveform.recording span:nth-child(7) { animation-delay: 0.16s; }
+    .waveform.recording span:nth-child(8) { animation-delay: 0.08s; }
+
+    @keyframes wave {
+      from { height: 8px; }
+      to { height: 36px; }
+    }
+
+    .emotion-display {
+      text-align: center;
+      padding: 0.5rem 0;
+    }
+
+    .emotion-name {
+      font-size: 2rem;
+      font-weight: 700;
+      text-transform: capitalize;
+      color: var(--accent);
+    }
+
+    .emotion-score {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-top: 0.25rem;
+    }
+
+    .clinical-bars {
+      margin-top: 0.85rem;
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 90px 1fr 42px;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.78rem;
+    }
+
+    .bar-row label { margin: 0; text-transform: capitalize; color: var(--muted); }
+
+    .bar-track {
+      height: 6px;
+      background: var(--bg);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .transcript {
+      max-height: 220px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .msg {
+      padding: 0.55rem 0.75rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      max-width: 92%;
+    }
+
+    .msg.user {
+      align-self: flex-end;
+      background: var(--accent-dim);
+      color: #fff;
+    }
+
+    .msg.assistant {
+      align-self: flex-start;
+      background: var(--bg);
+      border: 1px solid var(--border);
+    }
+
+    .msg .role {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      opacity: 0.7;
+      margin-bottom: 0.15rem;
+    }
+
+    .summary {
+      display: none;
+      padding: 0.75rem;
+      background: var(--bg);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      border: 1px solid var(--border);
+    }
+
+    .summary.visible { display: block; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Louie</h1>
+      <p>Empathic conversational agent — voice + emotion</p>
+    </header>
+
+    <div class="card">
+      <h2>Session</h2>
+      <label for="userId">Participant ID</label>
+      <input type="text" id="userId" placeholder="e.g. participant_01" autocomplete="off" />
+      <div class="controls">
+        <button id="startBtn" disabled>Start Session</button>
+        <span id="statusBadge" class="badge closed">
+          <span class="dot"></span>
+          <span id="statusText">Closed</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Voice Activity</h2>
+      <div id="waveform" class="waveform" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Detected Emotion</h2>
+      <div class="emotion-display">
+        <div id="emotionName" class="emotion-name">—</div>
+        <div id="emotionScore" class="emotion-score">Confidence: —</div>
+      </div>
+      <div id="clinicalBars" class="clinical-bars"></div>
+    </div>
+
+    <div class="card">
+      <h2>Conversation</h2>
+      <div id="transcript" class="transcript"></div>
+      <div id="summary" class="summary"></div>
+    </div>
+  </div>
+
+  <script>
+    const SAMPLE_RATE = 16000;
+    const CHUNK_SAMPLES = 4096;
+    const CLINICAL = ["anxiety", "sadness", "distress", "joy", "calmness", "enthusiasm"];
+
+    const userIdInput = document.getElementById("userId");
+    const startBtn = document.getElementById("startBtn");
+    const statusBadge = document.getElementById("statusBadge");
+    const statusText = document.getElementById("statusText");
+    const waveform = document.getElementById("waveform");
+    const emotionName = document.getElementById("emotionName");
+    const emotionScore = document.getElementById("emotionScore");
+    const clinicalBars = document.getElementById("clinicalBars");
+    const transcriptEl = document.getElementById("transcript");
+    const summaryEl = document.getElementById("summary");
+
+    let ws = null;
+    let isActive = false;
+    let audioContext = null;
+    let playbackContext = null;
+    let mediaStream = null;
+    let processor = null;
+    let source = null;
+    let playbackQueue = [];
+    let isPlaying = false;
+    let nextPlayTime = 0;
+
+    CLINICAL.forEach((e) => {
+      const row = document.createElement("div");
+      row.className = "bar-row";
+      row.innerHTML = `
+        <label>${e}</label>
+        <div class="bar-track"><div class="bar-fill" id="bar-${e}"></div></div>
+        <span id="val-${e}">0%</span>
+      `;
+      clinicalBars.appendChild(row);
+    });
+
+    userIdInput.addEventListener("input", () => {
+      startBtn.disabled = !userIdInput.value.trim() || isActive;
+    });
+
+    function setStatus(status) {
+      statusBadge.className = `badge ${status}`;
+      const labels = { connecting: "Connecting", active: "Active", closed: "Closed" };
+      statusText.textContent = labels[status] || status;
+    }
+
+    function floatTo16BitPCM(float32Array) {
+      const buffer = new ArrayBuffer(float32Array.length * 2);
+      const view = new DataView(buffer);
+      for (let i = 0; i < float32Array.length; i++) {
+        let s = Math.max(-1, Math.min(1, float32Array[i]));
+        view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+      }
+      return buffer;
+    }
+
+    function downsampleBuffer(buffer, inputRate, outputRate) {
+      if (inputRate === outputRate) return buffer;
+      const ratio = inputRate / outputRate;
+      const newLength = Math.round(buffer.length / ratio);
+      const result = new Float32Array(newLength);
+      for (let i = 0; i < newLength; i++) {
+        const idx = Math.floor(i * ratio);
+        result[i] = buffer[idx];
+      }
+      return result;
+    }
+
+    function appendTranscript(role, content) {
+      const div = document.createElement("div");
+      div.className = `msg ${role}`;
+      div.innerHTML = `<div class="role">${role}</div>${escapeHtml(content)}`;
+      transcriptEl.appendChild(div);
+      transcriptEl.scrollTop = transcriptEl.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+      const d = document.createElement("div");
+      d.textContent = text;
+      return d.innerHTML;
+    }
+
+    function updateEmotion(data) {
+      emotionName.textContent = data.emotion || "—";
+      emotionScore.textContent = `Confidence: ${((data.score || 0) * 100).toFixed(1)}%`;
+      const scores = data.clinical_scores || {};
+      CLINICAL.forEach((e) => {
+        const val = scores[e] || 0;
+        document.getElementById(`bar-${e}`).style.width = `${val * 100}%`;
+        document.getElementById(`val-${e}`).textContent = `${(val * 100).toFixed(0)}%`;
+      });
+    }
+
+    async function playPcmChunk(arrayBuffer) {
+      if (!playbackContext) {
+        playbackContext = new AudioContext({ sampleRate: SAMPLE_RATE });
+      }
+      if (playbackContext.state === "suspended") await playbackContext.resume();
+
+      const int16 = new Int16Array(arrayBuffer);
+      const float32 = new Float32Array(int16.length);
+      for (let i = 0; i < int16.length; i++) {
+        float32[i] = int16[i] / (int16[i] < 0 ? 0x8000 : 0x7fff);
+      }
+
+      const audioBuffer = playbackContext.createBuffer(1, float32.length, SAMPLE_RATE);
+      audioBuffer.getChannelData(0).set(float32);
+
+      const src = playbackContext.createBufferSource();
+      src.buffer = audioBuffer;
+      src.connect(playbackContext.destination);
+
+      const now = playbackContext.currentTime;
+      if (nextPlayTime < now) nextPlayTime = now;
+      src.start(nextPlayTime);
+      nextPlayTime += audioBuffer.duration;
+    }
+
+    async function playAudioChunk(arrayBuffer) {
+      if (!playbackContext) {
+        playbackContext = new AudioContext();
+      }
+      if (playbackContext.state === "suspended") await playbackContext.resume();
+
+      try {
+        const audioBuffer = await playbackContext.decodeAudioData(arrayBuffer.slice(0));
+        const src = playbackContext.createBufferSource();
+        src.buffer = audioBuffer;
+        src.connect(playbackContext.destination);
+        const now = playbackContext.currentTime;
+        if (nextPlayTime < now) nextPlayTime = now;
+        src.start(nextPlayTime);
+        nextPlayTime += audioBuffer.duration;
+      } catch (_) {
+        await playPcmChunk(arrayBuffer);
+      }
+    }
+
+    async function startSession() {
+      const userId = userIdInput.value.trim();
+      if (!userId) return;
+
+      summaryEl.classList.remove("visible");
+      summaryEl.textContent = "";
+      transcriptEl.innerHTML = "";
+      setStatus("connecting");
+      isActive = true;
+      startBtn.textContent = "Stop Session";
+      startBtn.classList.add("active");
+      startBtn.disabled = false;
+      userIdInput.disabled = true;
+      waveform.classList.add("recording");
+
+      const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+      ws = new WebSocket(`${protocol}//${location.host}/ws/${encodeURIComponent(userId)}`);
+      ws.binaryType = "arraybuffer";
+
+      ws.onopen = async () => {
+        try {
+          mediaStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            },
+          });
+
+          audioContext = new AudioContext();
+          source = audioContext.createMediaStreamSource(mediaStream);
+          processor = audioContext.createScriptProcessor(CHUNK_SAMPLES, 1, 1);
+
+          let sampleBuffer = new Float32Array(0);
+
+          processor.onaudioprocess = (e) => {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+            const input = e.inputBuffer.getChannelData(0);
+            const downsampled = downsampleBuffer(input, audioContext.sampleRate, SAMPLE_RATE);
+
+            const merged = new Float32Array(sampleBuffer.length + downsampled.length);
+            merged.set(sampleBuffer);
+            merged.set(downsampled, sampleBuffer.length);
+            sampleBuffer = merged;
+
+            while (sampleBuffer.length >= CHUNK_SAMPLES) {
+              const chunk = sampleBuffer.slice(0, CHUNK_SAMPLES);
+              sampleBuffer = sampleBuffer.slice(CHUNK_SAMPLES);
+              ws.send(floatTo16BitPCM(chunk));
+            }
+          };
+
+          source.connect(processor);
+          processor.connect(audioContext.destination);
+        } catch (err) {
+          console.error("Microphone error:", err);
+          alert("Microphone access denied or unavailable.");
+          stopSession();
+        }
+      };
+
+      ws.onmessage = async (event) => {
+        if (event.data instanceof ArrayBuffer) {
+          await playAudioChunk(event.data);
+          return;
+        }
+
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === "status" && data.status === "active") {
+            setStatus("active");
+          } else if (data.type === "transcript") {
+            appendTranscript(data.role, data.content);
+          } else if (data.type === "emotion_update") {
+            updateEmotion(data);
+          } else if (data.type === "session_summary") {
+            summaryEl.textContent =
+              `Session ${data.session_id} ended — ${data.turn_count} turns, ` +
+              `dominant emotion: ${data.dominant_emotion} (${(data.emotion_score * 100).toFixed(1)}%)`;
+            summaryEl.classList.add("visible");
+          }
+        } catch (_) { /* ignore non-JSON */ }
+      };
+
+      ws.onclose = () => {
+        if (isActive) stopSession(false);
+      };
+
+      ws.onerror = () => {
+        setStatus("closed");
+      };
+    }
+
+    function stopSession(manual = true) {
+      isActive = false;
+      waveform.classList.remove("recording");
+
+      if (processor) {
+        processor.disconnect();
+        processor.onaudioprocess = null;
+        processor = null;
+      }
+      if (source) { source.disconnect(); source = null; }
+      if (mediaStream) {
+        mediaStream.getTracks().forEach((t) => t.stop());
+        mediaStream = null;
+      }
+      if (audioContext) {
+        audioContext.close();
+        audioContext = null;
+      }
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+      ws = null;
+      nextPlayTime = 0;
+
+      setStatus("closed");
+      startBtn.textContent = "Start Session";
+      startBtn.classList.remove("active");
+      startBtn.disabled = !userIdInput.value.trim();
+      userIdInput.disabled = false;
+    }
+
+    startBtn.addEventListener("click", () => {
+      if (isActive) stopSession();
+      else startSession();
+    });
+  </script>
+</body>
+</html>
