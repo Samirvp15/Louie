@@ -28,6 +28,7 @@ class HumeEVIClient:
         self._client: AsyncHumeClient | None = None
         self._socket = None
         self._listener_task: asyncio.Task | None = None
+        self._settings_sent_at_connect = False
 
     @asynccontextmanager
     async def connect(
@@ -48,6 +49,16 @@ class HumeEVIClient:
                     "channels": 1,
                 },
             }
+            self._settings_sent_at_connect = True
+        else:
+            connect_kwargs["session_settings"] = {
+                "audio": {
+                    "encoding": "linear16",
+                    "sample_rate": 16000,
+                    "channels": 1,
+                },
+            }
+            self._settings_sent_at_connect = True
 
         use_callbacks = hasattr(self._client.empathic_voice.chat, "connect_with_callbacks")
 
@@ -98,8 +109,8 @@ class HumeEVIClient:
                     await self.close()
 
     async def _ensure_session_settings(self) -> None:
-        """Send PCM session settings if not passed at connect time."""
-        if not self._socket:
+        """Send PCM session settings only if not already sent at connect time."""
+        if not self._socket or self._settings_sent_at_connect:
             return
 
         settings = SessionSettings(

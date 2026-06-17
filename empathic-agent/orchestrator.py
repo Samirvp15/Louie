@@ -147,11 +147,33 @@ async def run_session(
     async def on_message(message) -> None:
         msg_type = getattr(message, "type", None)
 
+        async def emit_emotion(scores: dict) -> None:
+            if not scores:
+                return
+            emotion, score = emotion_parser.get_primary_emotion(scores)
+            session.update_emotion(emotion, score)
+            clinical = emotion_parser.get_clinical_scores(scores)
+            logger.info(
+                emotion_parser.format_emotion_for_log(
+                    emotion, score, session.session_id
+                )
+            )
+            await send_json({
+                "type": "emotion_update",
+                "emotion": emotion,
+                "score": round(score, 4),
+                "clinical_scores": clinical,
+                "turn_id": turn_state["turn_id"],
+            })
+
         if msg_type == "chat_metadata":
             chat_id = getattr(message, "chat_id", "unknown")
             logger.info("Hume chat started: %s", chat_id)
 
         elif msg_type == "user_message":
+            if getattr(message, "interim", False):
+                return
+
             content = ""
             if hasattr(message, "message") and message.message:
                 content = getattr(message.message, "content", "") or ""
@@ -164,6 +186,9 @@ async def run_session(
                 turn_state["turn_id"] = session.turn_count
                 await send_json({"type": "transcript", "role": "user", "content": content})
 
+            scores = emotion_parser.extract_prosody_scores(message)
+            await emit_emotion(scores)
+
         elif msg_type == "assistant_message":
             content = ""
             if hasattr(message, "message") and message.message:
@@ -172,28 +197,10 @@ async def run_session(
                 session.add_message("assistant", content)
                 await send_json({"type": "transcript", "role": "assistant", "content": content})
 
-            scores: dict = {}
-            if hasattr(message, "models") and message.models and message.models.prosody:
-                raw_scores = message.models.prosody.scores
-                if raw_scores:
-                    scores = dict(raw_scores)
-
-            if scores:
-                emotion, score = emotion_parser.get_primary_emotion(scores)
-                session.update_emotion(emotion, score)
-                clinical = emotion_parser.get_clinical_scores(scores)
-                logger.info(
-                    emotion_parser.format_emotion_for_log(
-                        emotion, score, session.session_id
-                    )
-                )
-                await send_json({
-                    "type": "emotion_update",
-                    "emotion": emotion,
-                    "score": round(score, 4),
-                    "clinical_scores": clinical,
-                    "turn_id": turn_state["turn_id"],
-                })
+            # Fallback: assistant prosody if user_message had none
+            if session.emotion_score == 0.0:
+                scores = emotion_parser.extract_prosody_scores(message)
+                await emit_emotion(scores)
 
         elif msg_type == "audio_output":
             ts_out = datetime.now(timezone.utc)
