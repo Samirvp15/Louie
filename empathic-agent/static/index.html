@@ -550,6 +550,9 @@
               `Session ${data.session_id} ended — ${data.turn_count} turns, ` +
               `dominant emotion: ${data.dominant_emotion} (${(data.emotion_score * 100).toFixed(1)}%)`;
             summaryEl.classList.add("visible");
+          } else if (data.type === "error") {
+            alert(data.message || "Error de conexión con el servidor.");
+            stopSession(false);
           }
         } catch (_) { /* ignore non-JSON */ }
       };

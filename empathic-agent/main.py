@@ -19,6 +19,16 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    load_dotenv(override=True)
+    from orchestrator import get_hume_credentials, validate_hume_credentials
+
+    api_key, config_id = get_hume_credentials()
+    cred_error = validate_hume_credentials(api_key, config_id)
+    if cred_error:
+        logger.warning("Startup: %s", cred_error)
+    else:
+        logger.info("Hume credentials loaded (key=...%s, config=%s)", api_key[-4:], config_id[:8])
+
     logger.info("Initializing Mem0 AsyncMemory client...")
     app.state.memory = await init_memory_client()
     yield

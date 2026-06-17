@@ -18,8 +18,29 @@ from session_manager import SessionState
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-HUME_API_KEY = os.getenv("HUME_API_KEY", "")
-HUME_CONFIG_ID = os.getenv("HUME_CONFIG_ID", "")
+PLACEHOLDER_KEYS = {
+    "your_hume_api_key_here",
+    "your_hume_config_id_here",
+    "your_openai_api_key_here",
+    "",
+}
+
+
+def get_hume_credentials() -> tuple[str, str]:
+    """Load Hume credentials fresh from .env on each session."""
+    load_dotenv(override=True)
+    api_key = os.getenv("HUME_API_KEY", "").strip()
+    config_id = os.getenv("HUME_CONFIG_ID", "").strip()
+    return api_key, config_id
+
+
+def validate_hume_credentials(api_key: str, config_id: str) -> str | None:
+    """Return an error message if credentials are missing or still placeholders."""
+    if not api_key or api_key in PLACEHOLDER_KEYS:
+        return "HUME_API_KEY no configurada. Edita .env y reinicia el servidor."
+    if not config_id or config_id in PLACEHOLDER_KEYS:
+        return "HUME_CONFIG_ID no configurado. Edita .env y reinicia el servidor."
+    return None
 
 BASE_SYSTEM_PROMPT = (
     "You are Louie, an empathic, warm, and attentive conversational agent. "
@@ -203,7 +224,15 @@ async def run_session(
     async def on_close() -> None:
         await finalize_session()
 
-    hume = HumeEVIClient(HUME_API_KEY, HUME_CONFIG_ID, system_prompt)
+    hume_api_key, hume_config_id = get_hume_credentials()
+    cred_error = validate_hume_credentials(hume_api_key, hume_config_id)
+    if cred_error:
+        logger.error(cred_error)
+        await send_json({"type": "error", "message": cred_error})
+        await finalize_session()
+        return
+
+    hume = HumeEVIClient(hume_api_key, hume_config_id, system_prompt)
 
     try:
         async with hume.connect(on_message_callback=on_message, on_close_callback=on_close):
@@ -216,8 +245,14 @@ async def run_session(
         logger.info("Client disconnected: user=%s session=%s", user_id, session.session_id)
         await finalize_session()
     except Exception as exc:
+        error_msg = str(exc)
+        if "401" in error_msg or "invalid credentials" in error_msg.lower():
+            error_msg = (
+                "Credenciales de Hume inválidas (401). Verifica HUME_API_KEY y "
+                "HUME_CONFIG_ID en .env, guarda el archivo y reinicia uvicorn."
+            )
         logger.exception("Session error for user %s: %s", user_id, exc)
+        await send_json({"type": "error", "message": error_msg})
         await finalize_session()
-        raise
     finally:
         await finalize_session()
