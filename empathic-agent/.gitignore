@@ -7,6 +7,8 @@ __pycache__/
 dist/
 build/
 logs/*.csv
+logs/qdrant_data/
+logs/validation/
 .qdrant/
 *.db
 .DS_Store

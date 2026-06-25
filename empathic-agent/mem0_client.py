@@ -16,6 +16,7 @@ MEM0_CONFIG = {
             "collection_name": "user_memories",
             "embedding_model_dims": 1536,
             "on_disk": True,
+            "path": "./logs/qdrant_data",
         },
     },
     "llm": {

@@ -71,6 +71,41 @@ async def reset_memories(user_id: str):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+@app.post("/memories/{user_id}")
+async def store_memories(user_id: str, body: dict):
+    """Store conversation messages for validation testing (M1–M5)."""
+    messages = body.get("messages", [])
+    if not messages:
+        raise HTTPException(status_code=400, detail="messages required")
+    try:
+        from mem0_client import save_memory
+
+        await save_memory(
+            app.state.memory,
+            user_id,
+            messages,
+            emotion=body.get("emotion", "neutral"),
+            emotion_score=float(body.get("emotion_score", 0.0)),
+        )
+        return {"user_id": user_id, "status": "stored", "count": len(messages)}
+    except Exception as exc:
+        logger.error("Failed to store memories: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/memories/{user_id}/search")
+async def search_memories(user_id: str, q: str, limit: int = 5):
+    """Search memories by query (validation testing)."""
+    try:
+        from mem0_client import get_relevant_memories
+
+        results = await get_relevant_memories(app.state.memory, user_id, q, top_k=limit)
+        return {"user_id": user_id, "query": q, "count": len(results), "results": results}
+    except Exception as exc:
+        logger.error("Failed to search memories: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 
